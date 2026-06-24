@@ -1,0 +1,38 @@
+[project]
+name = "moodle-downloader"
+version = "2.0.0"
+description = "Moodle 课程资料自动下载工具 — 支持并行下载、Rich 终端 UI"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.11"
+keywords = ["moodle", "downloader"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Education",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Education",
+    "Topic :: Internet :: WWW/HTTP",
+]
+
+dependencies = [
+    "requests>=2.31.0",
+    "beautifulsoup4>=4.12.0",
+    "selenium>=4.15.0",
+    "rich>=13.7.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+]
+
+[project.scripts]
+moodle-dl = "moodle_scraper.__main__:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]

@@ -1,0 +1,33 @@
+﻿# downloader 配置文件
+# 编辑此文件后重新运行 main.py 即可生效
+
+[course]
+# course_id = ""          # 运行时输入或 --list 选择
+# course_name = ""
+
+[paths]
+save_dir = "downloads"
+cookie_file = "moodle_cookies.json"
+
+[network]
+user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Edge/120.0.0.0"
+request_timeout = 30
+download_chunk_size = 8192
+
+[download]
+max_workers = 24
+
+[auth]
+login_timeout = 300
+login_check_interval = 1.0
+
+[filters]
+file_keywords = ["lecture"]
+file_extensions = [".pdf", ".ppt", ".pptx"]
+
+[ui]
+theme = "default"
+
+[browser]
+# 浏览器类型，留空 = 自动检测 (chrome → edge → firefox)
+# type = "chrome"
