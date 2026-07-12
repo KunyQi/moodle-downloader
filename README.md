@@ -1,145 +1,244 @@
-﻿# downloader
+<div align="center">
 
-[![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://python.org)
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+# moodle-downloader
 
-> ⚠️ **免责声明 / Disclaimer**  
-> 本工具仅供学生下载本人已注册课程的课件，方便离线学习。  
-> This tool is for students to download course materials they are enrolled in, for offline study purposes only.  
-> 请遵守所在机构 IT 使用政策。  
-> Please comply with your institution's IT Acceptable Use Policy.
+**把你已选课程的 UNSW Moodle 课件一键同步到本地，离线学习。**
+**Sync course materials from your enrolled UNSW Moodle courses to your disk for offline study.**
+
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Tests](https://img.shields.io/badge/tests-passing-brightgreen)](tests/)
+[![Version](https://img.shields.io/badge/version-2.1.0-informational)](https://github.com/KunyQi/moodle-downloader)
+
+[中文版](#中文版) · [English Version](#english-version)
+
+</div>
+
+> [!IMPORTANT]
+> **使用声明 / Disclaimer**
+>
+> 本工具仅供学生下载**自己已选课程**的课件用于**离线学习**。请遵守你所在院校的 IT 可接受使用政策（IT Acceptable Use Policy）。
+>
+> This tool is intended **only** for students downloading materials from courses they are **enrolled in**, for **offline study**. Always comply with your institution's IT Acceptable Use Policy.
 
 ---
 
 ## 中文版
 
-Moodle 课件资源自动下载工具。Rich 终端界面，支持 Chrome / Edge / Firefox。
+### 简介
 
-### ✨ 特性
+`moodle-downloader` 是一个面向 UNSW Moodle（`moodle.telt.unsw.edu.au`）的课程资料下载器。它通过真实浏览器完成 Okta SSO 登录，自动列出你已选的课程，深度扫描课程页面里的 PDF、PPT 等文件，然后并行下载到本地。重复运行时只会补齐新增文件——把它当成课件的"同步"工具即可。
 
-| 特性 | 说明 |
-|------|------|
-| 🖥️ **Rich 终端界面** | 进度条、仪表盘、文件类型图标 |
-| ⚡ **24 线程并行** | 默认 24 线程同时下载 |
-| 🌐 **多浏览器支持** | Chrome / Edge / Firefox 自动检测 |
-| 📋 **课程列表** | 列出已注册课程，一键选择下载 |
-| 🔑 **自动登录** | Selenium 浏览器登录 + Okta SSO，Cookie 复用 |
-| 🧠 **深度扫描** | 自动钻进子页面挖掘嵌套课件链接 |
-| 📁 **智能命名** | 自动抓取课程名，保存到对应目录 |
-| 🛡️ **防闪退** | 任何错误都有暂停画面，信息不丢失 |
+### 工作原理
 
-### 📦 安装
+1. **登录一次** —— 弹出真实浏览器窗口完成 Okta 验证，登录状态本地保存复用
+2. **选择课程** —— 自动列出你已选的全部课程，输入编号即可
+3. **深度扫描** —— 遍历课程主页与子页面，挖出所有嵌套课件链接
+4. **并行下载** —— 多线程同时下载，已有文件自动跳过，只补新增
+
+### 亮点
+
+- **真实浏览器登录，支持 Okta SSO** —— 通过 Selenium 打开浏览器窗口完成登录，cookies 本地持久化并复用，通常只需登录一次
+- **自动列出已选课程** —— 从 Moodle 首页读取你的课程列表，按编号选择，或直接输入课程 ID
+- **深度扫描** —— 除课程主页外，还会钻入子页面，找到别的工具漏掉的嵌套 / 内嵌文件
+- **并行下载** —— 默认 24 线程（可通过 `config.toml` 或 `--workers` 调整）
+- **精致的终端界面** —— 带 ETA 的进度条、含文件类型图标的扫描结果表格、下载报告仪表盘和结果横幅（基于 Rich）
+- **增量同步** —— 已存在于磁盘的文件自动跳过，随时重跑，只下新增
+- **原子写入** —— 先写 `.part` 临时文件再重命名，绝不留下损坏的半成品
+- **按关键词与扩展名过滤** —— 在 `config.toml` 中配置，只下你关心的文件
+- **自动识别课程名** —— 文件保存到与课程同名的文件夹
+- **中英双语界面**（v2.1.0 新增）—— `--lang en` 或配置文件一行切换
+- **浏览器自动检测** —— Chrome → Edge → Firefox 依次尝试，也可用 `--browser` 强制指定
+- **崩溃保护** —— 出错时控制台绝不闪退，错误信息完整可见
+- **Windows 一键启动** —— 双击 `启动下载器.bat` 即可使用
+
+### 安装
+
+需要 **Python 3.11+**。
 
 ```bash
+git clone https://github.com/KunyQi/moodle-downloader.git
+cd moodle-downloader
 pip install -r requirements.txt
 ```
 
-另需安装 WebDriver（至少一个）：[Chrome](https://chromedriver.chromium.org/) / [Edge](https://developer.microsoft.com/en-us/microsoft-edge/tools/webdriver/) / [Firefox](https://github.com/mozilla/geckodriver/releases)
+依赖：`requests`、`beautifulsoup4`、`selenium`、`rich`。
 
-### 🚀 使用
+另外需要至少一个浏览器驱动（与你的浏览器版本匹配）：
+
+| 浏览器 | 驱动 |
+| --- | --- |
+| Chrome | [chromedriver](https://chromedriver.chromium.org/) |
+| Edge | [msedgedriver](https://developer.microsoft.com/microsoft-edge/tools/webdriver/) |
+| Firefox | [geckodriver](https://github.com/mozilla/geckodriver/releases) |
+
+### 使用
 
 ```bash
-python main.py                     # 登录 → 列出课程 → 选择下载
-python main.py 98120               # 直接下载指定课程
-python main.py --browser chrome    # 指定浏览器
-python main.py --help
+python main.py                    # 自动登录 → 列出课程 → 选择下载
+python main.py 98120              # 直接下载课程 98120
+python main.py --browser chrome   # 指定浏览器 (chrome / edge / firefox)
+python main.py --lang en          # 界面语言 (zh / en)
+python main.py --workers 8        # 并行下载线程数
 ```
 
-首次运行自动打开浏览器完成登录。Cookie 持久化，下次无需重复登录。
+Windows 用户也可以直接双击 `启动下载器.bat`。
 
-### ⚙️ 配置
+首次运行会打开浏览器窗口，在其中完成 Okta 登录即可；登录状态会保存在本地的 `moodle_cookies.json` 中，之后的运行通常无需再次登录。**该文件包含你的会话凭据，请勿提交到版本库或分享给他人。**
 
-编辑 `config.toml`：
+### 配置
+
+编辑仓库根目录的 `config.toml`，重新运行即可生效：
 
 ```toml
 [download]
-max_workers = 24
-
-[browser]
-type = ""
+max_workers = 24                          # 并行下载线程数
 
 [filters]
-file_keywords = ["lecture"]
-file_extensions = [".pdf", ".ppt", ".pptx"]
+file_keywords = ["lecture"]               # 文件名关键词（留空 = 全部接受）
+file_extensions = [".pdf", ".ppt", ".pptx"]  # 扩展名白名单（留空 = 全部接受）
+
+[ui]
+language = "zh"                           # 界面语言: "zh" 或 "en"
+
+[browser]
+# type = "chrome"                         # 留空 = 自动检测 (chrome → edge → firefox)
 ```
 
-### 🧪 测试
+### 测试
 
 ```bash
-pip install pytest
 python -m pytest tests/ -q
 ```
 
-### 📄 许可
+全部 70+ 项测试完全离线运行——通过一个假 HTTP 客户端注入预设响应，不会碰真实网络。
 
-MIT License — 见 [LICENSE](LICENSE)。
+### 工程质量
+
+- 全量类型标注：所有函数参数与返回值均有类型注解
+- HTTP 访问隐藏在一个 `Protocol` 接缝之后：扫描器与下载器只依赖接口，不依赖 `requests`，因此可以完全离线测试
+- 单个文件或页面失败不会中断整批下载，失败项会在最终报告中列出
+
+### 贡献
+
+欢迎提 Issue 和 PR。提交前请：
+
+1. 运行 `python -m pytest tests/ -q` 确保测试通过
+2. 保持全量类型标注，新增外部依赖时沿用 `HttpClient` Protocol 接缝模式
+3. 测试通过假 HTTP 客户端进行，不要访问真实网络
+4. 用户可见文案一律通过 `moodle_scraper/i18n.py` 的 `t()` 取词，中英目录须同步更新
+
+### 许可证
+
+[MIT](LICENSE)
 
 ---
 
 ## English Version
 
-A Moodle course materials downloader. Rich terminal UI with support for Chrome / Edge / Firefox.
+### About
 
-### ✨ Features
+`moodle-downloader` is a course-material downloader for UNSW Moodle (`moodle.telt.unsw.edu.au`). It signs you in through a real browser window (Okta SSO), lists the courses you are enrolled in, deep-scans course pages for PDFs, PPTs and other files, and downloads them in parallel. Re-running it only fetches what's new — think of it as "sync" for your lecture materials.
 
-| Feature | Description |
-|--------|-------------|
-| 🖥️ **Rich Terminal UI** | Progress bars, dashboard, file type icons |
-| ⚡ **24-thread Parallel** | Downloads and scans with 24 threads |
-| 🌐 **Multi-browser** | Auto-detect Chrome / Edge / Firefox |
-| 📋 **Course List** | Lists enrolled courses for one-click download |
-| 🔑 **Auto Login** | Selenium browser login + SSO, cookie persistence |
-| 🧠 **Deep Scan** | Crawls sub-pages for nested resources |
-| 📁 **Smart Naming** | Auto-detects course name, saves to matching folder |
-| 🛡️ **Crash Protection** | Catches errors gracefully, never closes silently |
+### How it works
 
-### 📦 Installation
+1. **Log in once** — a real browser window opens for Okta verification; your session is saved and reused
+2. **Pick a course** — all your enrolled courses are listed automatically; just type a number
+3. **Deep scan** — the course page and its sub-pages are crawled to surface every nested file link
+4. **Parallel download** — multi-threaded downloads that skip anything already on disk
+
+### Highlights
+
+- **Real-browser login with Okta SSO** — Selenium opens a browser window for you to sign in; cookies are persisted locally and reused, so login is usually one-time
+- **Lists your enrolled courses** — read straight from the Moodle dashboard; pick by number or enter a course ID directly
+- **Deep scan** — drills into course sub-pages to find nested / embedded files that other tools miss
+- **Parallel downloads** — 24 threads by default (configurable via `config.toml` or `--workers`)
+- **Polished terminal UI** — progress bars with ETA, scan-result tables with file-type icons, a download report dashboard and result banners (built on Rich)
+- **Incremental sync** — files already on disk are skipped; re-run anytime to fetch only what's new
+- **Atomic writes** — downloads go to a `.part` temp file, then rename; no corrupt half-downloads, ever
+- **Keyword and extension filters** — configure in `config.toml` to download only what you care about
+- **Auto-detects the course name** — files are saved into a matching folder
+- **Fully bilingual interface** (new in v2.1.0) — switch between Chinese and English with `--lang en` or one line of config
+- **Browser auto-detect** — tries Chrome → Edge → Firefox, or force one with `--browser`
+- **Crash guard** — the console never closes silently on error; you always see what went wrong
+- **Windows one-click launcher** — double-click `启动下载器.bat` and go
+
+### Install
+
+Requires **Python 3.11+**.
 
 ```bash
+git clone https://github.com/KunyQi/moodle-downloader.git
+cd moodle-downloader
 pip install -r requirements.txt
 ```
 
-Also install a WebDriver (at least one): [Chrome](https://chromedriver.chromium.org/) / [Edge](https://developer.microsoft.com/en-us/microsoft-edge/tools/webdriver/) / [Firefox](https://github.com/mozilla/geckodriver/releases)
+Dependencies: `requests`, `beautifulsoup4`, `selenium`, `rich`.
 
-### 🚀 Usage
+You also need at least one WebDriver matching your browser:
+
+| Browser | Driver |
+| --- | --- |
+| Chrome | [chromedriver](https://chromedriver.chromium.org/) |
+| Edge | [msedgedriver](https://developer.microsoft.com/microsoft-edge/tools/webdriver/) |
+| Firefox | [geckodriver](https://github.com/mozilla/geckodriver/releases) |
+
+### Usage
 
 ```bash
-python main.py                     # Login → list courses → pick & download
-python main.py 98120               # Download a specific course by ID
-python main.py --browser chrome    # Specify browser
-python main.py --help
+python main.py                    # login → list courses → pick & download
+python main.py 98120              # download course 98120 directly
+python main.py --browser chrome   # force a browser (chrome / edge / firefox)
+python main.py --lang en          # UI language (zh / en)
+python main.py --workers 8        # number of parallel download threads
 ```
 
-On first run, the browser will open automatically for login. Cookies are saved for future use.
+On Windows you can also just double-click `启动下载器.bat`.
 
-### ⚙️ Configuration
+The first run opens a browser window — complete the Okta login there. Your session is saved locally to `moodle_cookies.json`, so subsequent runs usually skip the login entirely. **That file holds your session credentials — never commit it or share it.**
 
-Edit `config.toml`:
+### Configuration
+
+Edit `config.toml` in the repo root; changes take effect on the next run:
 
 ```toml
 [download]
-max_workers = 24
-
-[browser]
-type = ""
+max_workers = 24                          # parallel download threads
 
 [filters]
-file_keywords = ["lecture"]
-file_extensions = [".pdf", ".ppt", ".pptx"]
+file_keywords = ["lecture"]               # filename keywords (empty = accept all)
+file_extensions = [".pdf", ".ppt", ".pptx"]  # extension whitelist (empty = accept all)
+
+[ui]
+language = "en"                           # UI language: "zh" or "en"
+
+[browser]
+# type = "chrome"                         # empty = auto-detect (chrome → edge → firefox)
 ```
 
-### 🧪 Tests
+### Tests
 
 ```bash
-pip install pytest
 python -m pytest tests/ -q
 ```
 
-### 📄 License
+All 70+ tests run fully offline — they inject pre-registered responses through a fake HTTP client and never touch the network.
 
-MIT License — see [LICENSE](LICENSE).
+### Engineering notes
 
----
+- Fully type-annotated: every function parameter and return value carries a type hint
+- HTTP access sits behind a `Protocol` seam: the scanner and downloader depend only on the interface, never on `requests`, which is what makes the test suite completely offline
+- Per-item failure isolation: one bad page or file never aborts the batch; failures are listed in the final report
 
-> 🌐 **受限于作者时间，English Version of downloader 将在不久的将来上线。**  
-> Due to the author's limited availability, a dedicated English version of the downloader is in progress and will be released soon.
+### Contributing
+
+Issues and PRs are welcome. Before submitting:
+
+1. Run `python -m pytest tests/ -q` and make sure everything passes
+2. Keep full type annotations, and follow the `HttpClient` Protocol seam pattern when adding external dependencies
+3. Write tests against the fake HTTP client — no real network access in tests
+4. Route every user-visible string through `t()` in `moodle_scraper/i18n.py`, keeping the zh and en catalogs in sync
+
+### License
+
+[MIT](LICENSE)

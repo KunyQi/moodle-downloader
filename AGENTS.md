@@ -28,6 +28,7 @@ moodle_scraper/
 ├── downloader.py — Downloader，并行下载资源 → DownloadResult
 ├── utils.py      — sanitize_filename, is_login_page 纯函数
 ├── config.py     — AppConfig dataclass，从 config.toml 加载
+├── i18n.py       — 中/英文案目录 + t() 翻译函数（--lang / [ui].language 切换）
 ├── ui.py         — RichUI，面板/进度条/表格/彩色的终端界面
 └── __main__.py   — 编排：AuthManager → Scanner(client) → Downloader(client)
 ```
@@ -41,6 +42,7 @@ moodle_scraper/
 - **类型注解**: 全部函数参数/返回值标注类型；`from __future__ import annotations` 延后求值
 - **异常**: 自定义异常类（`ScanError`）；顶层 `try/except` 捕获未预期错误
 - **输出**: 全部通过 `RichUI.status(emoji, msg)` 和进度回调
+- **文案**: 用户可见文本一律走 `i18n.t(key)`，`_ZH` / `_EN` 目录必须同步添加（emoji 前缀留在代码里）；`main.py` 例外，保持双语静态文本
 - **配置**: 不硬编码；通过 `AppConfig` dataclass 读取 `config.toml`
 - **命名**: 类名 PascalCase；方法/变量 snake_case；私有方法 `_` 前缀
 - **导入顺序**: stdlib → 三方库 → 本地模块，每组空行分隔
