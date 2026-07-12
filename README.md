@@ -29,6 +29,10 @@
 
 `moodle-downloader` 是一个面向 UNSW Moodle（`moodle.telt.unsw.edu.au`）的课程资料下载器。它通过真实浏览器完成 Okta SSO 登录，自动列出你已选的课程，深度扫描课程页面里的 PDF、PPT 等文件，然后并行下载到本地。重复运行时只会补齐新增文件——把它当成课件的"同步"工具即可。
 
+<p align="center">
+  <img src="assets/demo-zh.svg" alt="moodle-downloader 终端演示（由真实界面渲染生成）" width="900">
+</p>
+
 ### 工作原理
 
 1. **登录一次** —— 弹出真实浏览器窗口完成 Okta 验证，登录状态本地保存复用
@@ -128,9 +132,39 @@ python -m pytest tests/ -q
 3. 测试通过假 HTTP 客户端进行，不要访问真实网络
 4. 用户可见文案一律通过 `moodle_scraper/i18n.py` 的 `t()` 取词，中英目录须同步更新
 
+### 常见问题
+
+<details>
+<summary><b>Cookie 过期了怎么办？</b></summary>
+
+什么都不用做。工具每次启动都会先探测本地会话是否有效，失效时自动重新弹出浏览器让你登录一次，之后继续复用。
+</details>
+
+<details>
+<summary><b>文件下载到哪里了？</b></summary>
+
+仓库目录下、以课程名自动命名的文件夹，例如 `PHYS1231_Higher_Physics_1B/`。重复运行只补新增文件，不会重复下载。
+</details>
+
+<details>
+<summary><b>为什么有些文件没被扫描到？</b></summary>
+
+检查 `config.toml` 的 `[filters]`。默认只保留文件名含 `lecture` 或后缀为 `.pdf/.ppt/.pptx` 的文件——把两个列表都设为 `[]` 即可下载全部文件。
+</details>
+
+<details>
+<summary><b>我的账号信息安全吗？</b></summary>
+
+登录发生在你本机弹出的真实浏览器窗口里，工具不经手你的密码；它只把会话 cookie 保存在本地 `moodle_cookies.json`（已被 `.gitignore` 排除），不收集、不上传任何数据。代码全部开源，欢迎审计。
+</details>
+
 ### 许可证
 
 [MIT](LICENSE)
+
+---
+
+**⭐ 如果它帮你省下了在 Moodle 里逐页点击的时间，欢迎点个 Star——这也是让更多同学发现它的最好方式。**
 
 ---
 
@@ -139,6 +173,10 @@ python -m pytest tests/ -q
 ### About
 
 `moodle-downloader` is a course-material downloader for UNSW Moodle (`moodle.telt.unsw.edu.au`). It signs you in through a real browser window (Okta SSO), lists the courses you are enrolled in, deep-scans course pages for PDFs, PPTs and other files, and downloads them in parallel. Re-running it only fetches what's new — think of it as "sync" for your lecture materials.
+
+<p align="center">
+  <img src="assets/demo-en.svg" alt="moodle-downloader terminal demo (rendered from the real UI)" width="900">
+</p>
 
 ### How it works
 
@@ -239,6 +277,36 @@ Issues and PRs are welcome. Before submitting:
 3. Write tests against the fake HTTP client — no real network access in tests
 4. Route every user-visible string through `t()` in `moodle_scraper/i18n.py`, keeping the zh and en catalogs in sync
 
+### FAQ
+
+<details>
+<summary><b>My cookies expired — what do I do?</b></summary>
+
+Nothing. On every run the tool first probes whether your saved session is still valid; if it isn't, a browser window opens automatically for a one-time re-login, and the new session is reused afterwards.
+</details>
+
+<details>
+<summary><b>Where do my files go?</b></summary>
+
+Into a folder named after the course, right in the repo directory — e.g. `PHYS1231_Higher_Physics_1B/`. Re-running only fetches new files; nothing is downloaded twice.
+</details>
+
+<details>
+<summary><b>Why are some files missing from the scan?</b></summary>
+
+Check `[filters]` in `config.toml`. By default only filenames containing `lecture` or ending in `.pdf/.ppt/.pptx` are kept — set both lists to `[]` to download everything.
+</details>
+
+<details>
+<summary><b>Is my account safe?</b></summary>
+
+You log in inside a real browser window on your own machine — the tool never sees your password. It only stores the session cookie locally in `moodle_cookies.json` (already in `.gitignore`), collects nothing, and uploads nothing. The code is fully open source — audit away.
+</details>
+
 ### License
 
 [MIT](LICENSE)
+
+---
+
+**⭐ If this tool saved you from clicking through Moodle page by page, consider leaving a star — it's the best way to help other students find it.**
