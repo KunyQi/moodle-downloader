@@ -27,6 +27,8 @@ file_extensions = [".pdf", ".ppt", ".pptx"]
 
 [ui]
 theme = "default"
+# 界面语言 / UI language: "zh" (中文) 或 "en" (English)
+language = "zh"
 
 [browser]
 # 浏览器类型，留空 = 自动检测 (chrome → edge → firefox)

@@ -13,6 +13,7 @@ from typing import Optional
 
 from .config import AppConfig
 from .http import HttpClient, RequestsHttpClient
+from .i18n import t
 
 
 class AuthError(Exception):
@@ -71,7 +72,10 @@ def _detect_browser(ui_browser: str = "") -> tuple[str, object]:
     """
     if ui_browser:
         if ui_browser not in _BROWSER_REGISTRY:
-            raise AuthError(f"不支持的浏览器: {ui_browser}，可选: {', '.join(_BROWSER_REGISTRY)}")
+            raise AuthError(t(
+                "auth.unsupported_browser",
+                browser=ui_browser, options=", ".join(_BROWSER_REGISTRY),
+            ))
         name, driver_name, factory = _BROWSER_REGISTRY[ui_browser]
         return name, factory()
 
@@ -82,12 +86,7 @@ def _detect_browser(ui_browser: str = "") -> tuple[str, object]:
         except Exception:
             continue
 
-    raise AuthError(
-        "未检测到可用浏览器。请安装以下任一 WebDriver：\n"
-        "  - Chrome:  https://chromedriver.chromium.org/\n"
-        "  - Edge:    https://developer.microsoft.com/en-us/microsoft-edge/tools/webdriver/\n"
-        "  - Firefox: https://github.com/mozilla/geckodriver/releases"
-    )
+    raise AuthError(t("auth.no_browser"))
 
 
 # ─── AuthManager ────────────────────────────────────────────
@@ -119,7 +118,7 @@ class AuthManager:
                 client = self._make_client(cached)
                 if self._check_client(client):
                     return client
-                self._on_status("⚠️", "Cookie 已过期，需要重新登录")
+                self._on_status("⚠️", t("auth.cookie_expired"))
 
         # Selenium 重新登录
         browser = self._config.browser
@@ -129,7 +128,7 @@ class AuthManager:
             flat = {c["name"]: c["value"] for c in fresh_raw}
             return self._make_client(flat)
 
-        self._on_status("❌", "无法获取有效的登录凭据")
+        self._on_status("❌", t("auth.no_credentials"))
         return None
 
     def clear_cookies(self) -> None:
@@ -137,7 +136,7 @@ class AuthManager:
         path = Path(self._config.cookie_file)
         if path.exists():
             path.unlink()
-            self._on_status("🗑️", "已清除本地 Cookie")
+            self._on_status("🗑️", t("auth.cookies_cleared"))
 
     # ─── 内部方法 ─────────────────────────────────────────────
 
@@ -178,13 +177,13 @@ class AuthManager:
             self._on_status("❌", str(e))
             return None
 
-        self._on_status("🔑", f"正在唤起 {browser_name} 浏览器进行身份验证...")
+        self._on_status("🔑", t("auth.launching_browser", browser=browser_name))
 
         driver_obj = driver
         try:
             driver_obj.get("https://moodle.telt.unsw.edu.au/login/index.php")
-            self._on_status("👉", "请在弹出的浏览器中完成登录和 Okta 验证")
-            self._on_status("⏳", "登录成功后无需操作，脚本将自动接管...")
+            self._on_status("👉", t("auth.complete_login"))
+            self._on_status("⏳", t("auth.auto_continue"))
 
             cfg = self._config
             start = time.time()
@@ -192,15 +191,15 @@ class AuthManager:
                 current = driver_obj.current_url
                 if "moodle.telt.unsw.edu.au/my/" in current or "course/view.php" in current:
                     cookies = driver_obj.get_cookies()
-                    self._on_status("✅", f"登录成功！Cookie 已安全保存")
+                    self._on_status("✅", t("auth.login_success"))
                     return cookies
                 time.sleep(cfg.login_check_interval)
 
-            self._on_status("❌", "登录等待超时，请重新运行")
+            self._on_status("❌", t("auth.login_timeout"))
             return None
 
         except Exception as e:
-            self._on_status("❌", f"浏览器调用失败: {e}")
+            self._on_status("❌", t("auth.browser_error", error=e))
             return None
         finally:
             if driver_obj:

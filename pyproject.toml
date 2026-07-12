@@ -1,6 +1,6 @@
 [project]
 name = "moodle-downloader"
-version = "2.0.0"
+version = "2.1.0"
 description = "Moodle 课程资料自动下载工具 — 支持并行下载、Rich 终端 UI"
 readme = "README.md"
 license = { file = "LICENSE" }

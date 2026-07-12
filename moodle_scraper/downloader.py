@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from typing import Callable, Optional
 
 from .http import HttpClient
+from .i18n import t
 from .scanner import Resource
 from .utils import extract_extension, sanitize_filename
 
@@ -71,7 +72,10 @@ class Downloader:
 
         self._on_progress(
             0, total,
-            f"📦 共 {len(resources)} 个目标，{skip_count} 个已存在，{total} 个待下载"
+            "📦 " + t(
+                "downloader.queue_summary",
+                total=len(resources), existing=skip_count, pending=total,
+            ),
         )
 
         new_count = 0
@@ -95,7 +99,10 @@ class Downloader:
                         failed_names.append(res.name)
                 except Exception:
                     failed_names.append(res.name)
-                self._on_progress(done, total, f"⏳ {done}/{total} — 已成功 {new_count} 个")
+                self._on_progress(
+                    done, total,
+                    "⏳ " + t("downloader.progress", done=done, total=total, ok=new_count),
+                )
 
         return DownloadResult(
             new_count=new_count,

@@ -14,6 +14,7 @@ from typing import Optional
 from bs4 import BeautifulSoup
 
 from .http import HttpClient, HttpResponse
+from .i18n import t
 from .utils import is_login_page
 
 
@@ -60,7 +61,7 @@ class Scanner:
             resp = self._client.get(url, timeout=30)
 
             if is_login_page(resp.url, resp.text):
-                raise ScanError("⚠️ 登录状态已过期，请重新登录")
+                raise ScanError(t("scanner.session_expired"))
 
             soup = BeautifulSoup(resp.text, "html.parser")
 
@@ -238,7 +239,7 @@ class Scanner:
         resp = self._fetch(url)
 
         if is_login_page(resp.url, resp.text):
-            raise ScanError("⚠️ 登录状态已过期，请重新登录")
+            raise ScanError(t("scanner.session_expired"))
 
         soup = BeautifulSoup(resp.text, "html.parser")
 

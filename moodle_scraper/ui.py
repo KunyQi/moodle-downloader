@@ -1,4 +1,4 @@
-﻿"""
+"""
 downloader — UI 界面
 
 ⚠️ 免责声明: 本工具仅供学生下载本人已注册课程的课件。
@@ -7,6 +7,7 @@ Disclaimer: For students to download their own course materials only.
 from __future__ import annotations
 
 import sys
+from typing import Optional
 
 # Windows GBK 终端下确保 Rich 能输出 UTF-8 emoji
 if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
@@ -34,7 +35,9 @@ from rich.style import Style
 from rich.table import Table
 from rich.text import Text
 
+from . import __version__
 from .config import AppConfig
+from .i18n import t
 
 console = Console()
 
@@ -62,8 +65,13 @@ class RichUI:
         """显示启动欢迎面板"""
         header = Text("downloader", style=f"bold {C_PRIMARY}")
         sub = Text(
-            f"课程  {self.config.course_name}   ·   ID  {self.config.course_id}   ·   "
-            f"并行  {self.config.max_workers} 线程   ·   保存至  {self.config.save_dir}/",
+            t(
+                "ui.welcome_sub",
+                course=self.config.course_name,
+                course_id=self.config.course_id,
+                workers=self.config.max_workers,
+                save_dir=self.config.save_dir,
+            ),
             style=C_MUTED,
         )
         panel = Panel(
@@ -134,7 +142,7 @@ class RichUI:
             return
         console.print()
         table = Table(
-            title=f"📂  发现  {len(items)}  个文件",
+            title=f"📂  {t('ui.scan_title', count=len(items))}",
             title_style=f"bold {C_PRIMARY}",
             border_style=C_BORDER,
             box=box.ROUNDED,
@@ -142,19 +150,19 @@ class RichUI:
             header_style=f"bold {C_PRIMARY}",
         )
         table.add_column("#", style=C_MUTED, width=4, justify="right")
-        table.add_column("文件名", style="white", min_width=30)
-        table.add_column("状态", style=C_MUTED, width=10)
+        table.add_column(t("ui.col_filename"), style="white", min_width=30)
+        table.add_column(t("ui.col_status"), style=C_MUTED, width=10)
 
         for i, item in enumerate(items, 1):
             name = item.name if hasattr(item, "name") else item["name"]
             icon = self._file_icon(name)
             if i > 20:
                 break
-            table.add_row(str(i), f"{icon}  {name}", "待下载")
+            table.add_row(str(i), f"{icon}  {name}", t("ui.pending"))
 
         remaining = len(items) - 20
         if remaining > 0:
-            table.add_row("", f"[dim]… 还有 {remaining} 个文件[/]", "")
+            table.add_row("", f"[dim]{t('ui.more_files', count=remaining)}[/]", "")
 
         console.print(table)
 
@@ -188,16 +196,16 @@ class RichUI:
         skipped = max(0, total - new_count - len(failed))
 
         cards = [
-            self._stat_card("📦 总目标", str(total), C_MUTED),
-            self._stat_card("✅ 新增", str(new_count), C_SUCCESS),
-            self._stat_card("⏩ 已有", str(skipped), C_WARN),
+            self._stat_card(f"📦 {t('ui.card_total')}", str(total), C_MUTED),
+            self._stat_card(f"✅ {t('ui.card_new')}", str(new_count), C_SUCCESS),
+            self._stat_card(f"⏩ {t('ui.card_skipped')}", str(skipped), C_WARN),
         ]
         if failed:
-            cards.append(self._stat_card("❌ 失败", str(len(failed)), C_DANGER))
+            cards.append(self._stat_card(f"❌ {t('ui.card_failed')}", str(len(failed)), C_DANGER))
 
         panel = Panel(
             Columns(cards, equal=True, expand=True),
-            title="下载报告",
+            title=t("ui.report_title"),
             title_align="center",
             border_style=C_BORDER,
             box=box.ROUNDED,
@@ -211,7 +219,7 @@ class RichUI:
             fail_table.add_column(style=f"bold {C_DANGER}")
             for f in failed:
                 fail_table.add_row(f"  ✗  {f}")
-            console.print(Panel(fail_table, title="失败列表", border_style=C_DANGER, box=box.ROUNDED))
+            console.print(Panel(fail_table, title=t("ui.failed_list_title"), border_style=C_DANGER, box=box.ROUNDED))
 
     def _stat_card(self, label: str, value: str, color: str) -> RenderableType:
         """单个统计卡片"""
@@ -233,10 +241,10 @@ class RichUI:
         console.print(Rule(style=C_BORDER))
         console.print()
         if new_count == 0:
-            msg = Text("🎉  资料已是最新，无需更新！", style=f"bold {C_SUCCESS}", justify="center")
+            msg = Text(f"🎉  {t('ui.up_to_date')}", style=f"bold {C_SUCCESS}", justify="center")
         else:
             msg = Text(
-                f"🎉  成功新增  {new_count}  个文件",
+                f"🎉  {t('ui.added_files', count=new_count)}",
                 style=f"bold {C_SUCCESS}",
                 justify="center",
             )
@@ -251,13 +259,14 @@ class RichUI:
     def dashboard(
         self,
         *,
-        status: str = "初始化",
+        status: Optional[str] = None,
         status_color: str = C_MUTED,
         course_count: Optional[int] = None,
     ) -> None:
         """启动仪表盘 — 版本号 + 状态 + 统计 + 操作提示"""
         from datetime import datetime
 
+        status = status or t("ui.dash_status_init")
         now = datetime.now().strftime("%Y-%m-%d %H:%M")
 
         # ── 顶部标题 ──
@@ -265,7 +274,7 @@ class RichUI:
             Align.center(
                 Group(
                     Text("downloader", style=f"bold {C_PRIMARY}"),
-                    Text(f"v2.0.0", style=C_MUTED),
+                    Text(f"v{__version__}", style=C_MUTED),
                 ),
             ),
             border_style=C_BORDER,
@@ -279,7 +288,7 @@ class RichUI:
             ("  │  ", C_MUTED),
             (now, C_MUTED),
             ("  │  ", C_MUTED),
-            (f"{self.config.max_workers} 线程", C_PRIMARY),
+            (t("ui.dash_threads", count=self.config.max_workers), C_PRIMARY),
         )
 
         middle = Panel(
@@ -290,7 +299,7 @@ class RichUI:
         )
 
         # ── 底部操作指引 ──
-        help_text = Text("  \u23ce  按 Enter 键继续  ", style=C_MUTED)
+        help_text = Text(f"  \u23ce  {t('ui.dash_continue')}  ", style=C_MUTED)
         bottom = Panel(
             Align.center(help_text),
             border_style=C_BORDER,
@@ -307,8 +316,8 @@ class RichUI:
             stats = Panel(
                 Align.center(
                     Group(
-                        Text(f"📚 可访问 {course_count} 门课程", style=f"bold {C_SUCCESS}"),
-                        Text(f"保存至 {self.config.save_dir}/", style=C_MUTED),
+                        Text(f"📚 {t('ui.dash_courses', count=course_count)}", style=f"bold {C_SUCCESS}"),
+                        Text(t("ui.dash_save_dir", save_dir=self.config.save_dir), style=C_MUTED),
                     ),
                 ),
                 border_style=C_BORDER,

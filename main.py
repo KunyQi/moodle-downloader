@@ -2,10 +2,13 @@
 """
 downloader
 
-用法:
+用法 / Usage:
       python main.py                    自动登录 → 列出课程 → 选择下载
+                                        login → list courses → pick & download
       python main.py 98120              直接下载课程 98120
-      python main.py --browser chrome   指定浏览器 (chrome / edge / firefox)
+                                        download course 98120 directly
+      python main.py --browser chrome   指定浏览器 / browser (chrome / edge / firefox)
+      python main.py --lang en          界面语言 / UI language (zh / en)
 """
 import sys
 import traceback
@@ -19,24 +22,24 @@ if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
 
 
 def _show_crash(info: str) -> None:
-    """统一的崩溃画面 — 红框报错 + 等用户按回车再关"""
+    """统一的崩溃画面 — 红框报错 + 等用户按回车再关（双语，包不可用时也能显示）"""
     border = "=" * 60
     print()
     print(border)
-    print("  💥 程序异常终止")
+    print("  💥 程序异常终止 / Program terminated unexpectedly")
     print(border)
     print()
     print(info)
     print()
     print(border)
-    print("  如需帮助，请检查:")
+    print("  如需帮助，请检查 / Troubleshooting:")
     print("    1. pip install -r requirements.txt")
-    print("    2. Edge WebDriver 是否安装")
-    print("    3. 网络是否正常")
+    print("    2. WebDriver 是否安装 / Is a WebDriver installed?")
+    print("    3. 网络是否正常 / Is the network OK?")
     print(border)
     print()
     try:
-        input("  按 Enter 键退出...")
+        input("  按 Enter 键退出... / Press Enter to exit...")
     except Exception:
         pass
 
@@ -60,6 +63,7 @@ try:
         workers = None
         discover_range = None
         browser = ""
+        lang = ""
         args = sys.argv[1:]
 
         i = 0
@@ -74,10 +78,13 @@ try:
             elif args[i] == "--workers" and i + 1 < len(args):
                 workers = int(args[i + 1])
                 i += 2
+            elif args[i] == "--lang" and i + 1 < len(args):
+                lang = args[i + 1]
+                i += 2
             elif args[i] == "--help":
                 print(__doc__)
                 try:
-                    input("\n  按 Enter 键退出...")
+                    input("\n  按 Enter 键退出... / Press Enter to exit...")
                 except (EOFError, KeyboardInterrupt):
                     pass
                 sys.exit(0)
@@ -85,8 +92,8 @@ try:
                 course_id = args[i]
                 i += 1
             else:
-                print(f"未知参数: {args[i]}")
-                input("\n  按 Enter 键退出...")
+                print(f"未知参数 / Unknown argument: {args[i]}")
+                input("\n  按 Enter 键退出... / Press Enter to exit...")
                 sys.exit(1)
 
         main(
@@ -94,6 +101,7 @@ try:
             workers=workers,
             discover_range=discover_range,
             browser=browser,
+            lang=lang,
         )
 
 except SystemExit:

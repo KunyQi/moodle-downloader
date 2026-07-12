@@ -45,6 +45,7 @@ class AppConfig:
 
     # 界面
     theme: str = "default"
+    language: str = "zh"  # 界面语言 / UI language: "zh" 或 "en"
 
     # 浏览器（留空 = 自动检测）
     browser: str = ""
@@ -72,7 +73,7 @@ class AppConfig:
             "download": ["max_workers"],
             "auth": ["login_timeout", "login_check_interval"],
             "filters": ["file_keywords", "file_extensions"],
-            "ui": ["theme"],
+            "ui": ["theme", "language"],
             "browser": ["browser"],
         }
 

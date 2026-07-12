@@ -24,6 +24,7 @@ if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
 from .auth import AuthManager
 from .config import AppConfig, config as global_config
 from .downloader import Downloader
+from .i18n import DEFAULT_LANGUAGE, resolve_language, set_language, t
 from .scanner import CourseInfo, Scanner
 from .ui import RichUI
 
@@ -54,14 +55,14 @@ def _show_course_table(courses: list, title: str) -> Optional[dict]:
         border_style="dim", header_style="bold blue",
     )
     table.add_column("#", style="dim", width=4)
-    table.add_column("课程名称", style="white")
-    table.add_column("课程 ID", style="yellow")
+    table.add_column(t("table.course_name"), style="white")
+    table.add_column(t("table.course_id"), style="yellow")
     for i, c in enumerate(courses, 1):
         table.add_row(str(i), c.name, c.id)
     console.print(table)
     console.print()
     try:
-        choice = input("  输入序号选课，或直接输入课程 ID（回车退出）: ").strip()
+        choice = input(f"  {t('table.pick_prompt')}").strip()
     except (EOFError, KeyboardInterrupt):
         return None
     if not choice:
@@ -74,7 +75,7 @@ def _show_course_table(courses: list, title: str) -> Optional[dict]:
         pass
     # 不是有效序号 → 检查输入是否为有效的课程 ID（至少是数字）
     if not choice.isdigit():
-        console.print("  [red]❌ 请输入数字序号或有效的课程 ID[/]")
+        console.print(f"  [red]❌ {t('table.pick_invalid')}[/]")
         return None
     return CourseInfo(id=choice, name=f"Course_{choice}", url="")
 
@@ -84,14 +85,14 @@ def _download_course_by_id(ui: RichUI, client, course_id: str, config: AppConfig
     config.course_id = course_id
     scanner = Scanner(client)
 
-    ui.status("📋", f"正在识别课程 {course_id}...")
+    ui.status("📋", t("flow.detecting_course", course_id=course_id))
     detected_name = scanner.fetch_course_name(course_id)
     config.course_name = detected_name
     safe_dir_name = detected_name.replace(" ", "_").replace("/", "_")
     config.save_dir = safe_dir_name
     config.ensure_dirs()
 
-    ui.status("🔍", "正在扫描课件文件...")
+    ui.status("🔍", t("flow.scanning"))
     try:
         items = scanner.scan_course(
             course_id,
@@ -99,20 +100,20 @@ def _download_course_by_id(ui: RichUI, client, course_id: str, config: AppConfig
             extensions=config.file_extensions,
         )
     except Exception as e:
-        ui.show_error("扫描失败", str(e))
+        ui.show_error(t("flow.scan_failed_title"), str(e))
         return 1
 
     if not items:
-        ui.status("❓", "未找到任何课件资源")
+        ui.status("❓", t("flow.no_resources"))
         return 0
 
     ui.show_scan_results(items)
-    if not _confirm(f"共 {len(items)} 个文件，确认下载？"):
-        ui.status("⏩", "已取消")
+    if not _confirm(t("flow.confirm_download", count=len(items))):
+        ui.status("⏩", t("flow.cancelled"))
         return 0
 
     progress = ui.create_progress()
-    task_id = progress.add_task("📥 下载中...", total=len(items))
+    task_id = progress.add_task(f"📥 {t('flow.downloading')}", total=len(items))
     downloader = Downloader(
         client,
         save_dir=config.save_dir,
@@ -135,9 +136,9 @@ def _list_courses(ui: RichUI, client, config: AppConfig) -> int:
     scanner = Scanner(client)
     courses = scanner.list_courses()
     if not courses:
-        ui.show_error("无课程", "未找到任何课程")
+        ui.show_error(t("flow.no_courses_title"), t("flow.no_courses_detail"))
         return 1
-    picked = _show_course_table(courses, f"📚 你注册了 {len(courses)} 门课程")
+    picked = _show_course_table(courses, f"📚 {t('flow.enrolled_title', count=len(courses))}")
     if not picked:
         return 0
     return _download_course_by_id(ui, client, picked.id, config)
@@ -149,15 +150,18 @@ def _discover_courses(
 ) -> int:
     """扫描 ID 范围 → 列出结果 → 选一门下载"""
     if start_id <= 0 or end_id <= 0 or end_id < start_id:
-        ui.show_error("参数无效", "扫描范围无效，请使用: --discover 起始ID-结束ID")
+        ui.show_error(t("flow.invalid_range_title"), t("flow.invalid_range_detail"))
         return 1
     total = end_id - start_id + 1
     scanner = Scanner(client)
     progress = ui.create_progress()
-    task_id = progress.add_task("🔍 扫描中...", total=total)
+    task_id = progress.add_task(f"🔍 {t('flow.discover_scanning')}", total=total)
 
     def on_progress(done: int, _total: int, _cid: int):
-        progress.update(task_id, completed=done, description=f"🔍 正在试 ID {_cid}...")
+        progress.update(
+            task_id, completed=done,
+            description=f"🔍 {t('flow.discover_trying', course_id=_cid)}",
+        )
 
     with progress:
         courses = scanner.discover_courses(
@@ -167,9 +171,12 @@ def _discover_courses(
         )
 
     if not courses:
-        ui.show_error("无发现", f"范围 {start_id}～{end_id} 内未找到可访问的课程")
+        ui.show_error(
+            t("flow.discover_none_title"),
+            t("flow.discover_none_detail", start=start_id, end=end_id),
+        )
         return 1
-    picked = _show_course_table(courses, f"🔍 发现 {len(courses)} 门可访问的课程")
+    picked = _show_course_table(courses, f"🔍 {t('flow.discover_found_title', count=len(courses))}")
     if not picked:
         return 0
     return _download_course_by_id(ui, client, picked.id, config)
@@ -186,6 +193,7 @@ def main_impl(
     workers: Optional[int] = None,
     discover_range: Optional[str] = None,
     browser: str = "",
+    lang: str = "",
 ) -> int:
     """主流程 — 返回退出码 (0=成功)"""
     if course_id is not None:
@@ -194,6 +202,14 @@ def main_impl(
         config.max_workers = workers
     if browser:
         config.browser = browser
+    if lang:
+        config.language = lang
+
+    # 解析界面语言（--lang 优先于 config.toml；无法识别时回退默认并提示）
+    requested_lang = (config.language or "").strip()
+    resolved_lang = resolve_language(requested_lang) if requested_lang else DEFAULT_LANGUAGE
+    unsupported_lang = requested_lang if resolved_lang is None else ""
+    set_language(resolved_lang or DEFAULT_LANGUAGE)
 
     # 解析 discover 范围（必须由 --discover start-end 指定）
     discover_start, discover_end = 0, 0
@@ -206,18 +222,20 @@ def main_impl(
             discover_start, discover_end = 0, 0
 
     ui = RichUI(config)
+    if unsupported_lang:
+        ui.status("⚠️", t("lang.unsupported", lang=unsupported_lang))
     auth = AuthManager(config, on_status=ui.status)
 
     # ── 认证 ──────────────────────────────────────────
     cookies_exist = auth.has_cached_cookies()
     if not cookies_exist:
-        if not _confirm("打开 Edge 浏览器登录 UNWS Moodle？"):
-            ui.status("👋", "已取消")
+        if not _confirm(t("flow.confirm_login")):
+            ui.status("👋", t("flow.cancelled"))
             return 0
 
     client = auth.get_authenticated_client(use_cached_first=cookies_exist)
     if not client:
-        ui.show_error("认证失败", "无法获取有效的登录凭据")
+        ui.show_error(t("flow.auth_failed_title"), t("flow.auth_failed_detail"))
         return 1
 
     # ── 分发 ──────────────────────────────────────────
@@ -237,6 +255,7 @@ def main(
     workers: Optional[int] = None,
     discover_range: Optional[str] = None,
     browser: str = "",
+    lang: str = "",
 ) -> None:
     """CLI 入口"""
     exit_code = 1
@@ -247,14 +266,15 @@ def main(
             workers=workers,
             discover_range=discover_range,
             browser=browser,
+            lang=lang,
         )
     except KeyboardInterrupt:
-        print("\n  ⛔ 用户中断")
+        print(f"\n  ⛔ {t('app.user_interrupt')}")
     except Exception:
-        print("\n  💥 发生未预料的错误：")
+        print(f"\n  💥 {t('app.unexpected_error')}")
         traceback.print_exc()
     finally:
-        input("\n  按 Enter 键退出...")
+        input(f"\n  {t('app.press_enter_exit')}")
         sys.exit(exit_code)
 
 

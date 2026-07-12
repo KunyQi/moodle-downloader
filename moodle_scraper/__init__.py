@@ -8,4 +8,4 @@ downloader
    请遵守所在机构 IT 使用政策。
    Please comply with your institution's IT Acceptable Use Policy.
 """
-__version__ = "2.0.0"
+__version__ = "2.1.0"
