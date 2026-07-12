@@ -30,7 +30,7 @@
 `moodle-downloader` 是一个面向 UNSW Moodle（`moodle.telt.unsw.edu.au`）的课程资料下载器。它通过真实浏览器完成 Okta SSO 登录，自动列出你已选的课程，深度扫描课程页面里的 PDF、PPT 等文件，然后并行下载到本地。重复运行时只会补齐新增文件——把它当成课件的"同步"工具即可。
 
 <p align="center">
-  <img src="assets/demo-zh.svg" alt="moodle-downloader 终端演示（由真实界面渲染生成）" width="900">
+  <img src="assets/demo-zh.png" alt="moodle-downloader 终端演示（由真实界面渲染生成）" width="760">
 </p>
 
 ### 工作原理
@@ -175,7 +175,7 @@ python -m pytest tests/ -q
 `moodle-downloader` is a course-material downloader for UNSW Moodle (`moodle.telt.unsw.edu.au`). It signs you in through a real browser window (Okta SSO), lists the courses you are enrolled in, deep-scans course pages for PDFs, PPTs and other files, and downloads them in parallel. Re-running it only fetches what's new — think of it as "sync" for your lecture materials.
 
 <p align="center">
-  <img src="assets/demo-en.svg" alt="moodle-downloader terminal demo (rendered from the real UI)" width="900">
+  <img src="assets/demo-en.png" alt="moodle-downloader terminal demo (rendered from the real UI)" width="760">
 </p>
 
 ### How it works

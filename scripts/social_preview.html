@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { width: 1280px; height: 640px; overflow: hidden; }
+  #card {
+    width: 1280px; height: 640px;
+    position: relative;
+    background: radial-gradient(ellipse 120% 90% at 20% 0%, #16233a 0%, #0d1117 55%, #0a0d12 100%);
+    font-family: "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+    color: #e6edf3;
+    display: flex;
+    align-items: center;
+  }
+  .left {
+    width: 56%;
+    padding: 0 0 0 72px;
+    position: relative; z-index: 2;
+  }
+  .badge-row { display: flex; gap: 10px; margin-bottom: 26px; }
+  .mini-badge {
+    font-size: 17px; font-weight: 600; letter-spacing: .3px;
+    padding: 5px 14px; border-radius: 999px;
+    background: rgba(56, 139, 253, .15); color: #79c0ff;
+    border: 1px solid rgba(56, 139, 253, .4);
+  }
+  .mini-badge.green { background: rgba(63, 185, 80, .12); color: #56d364; border-color: rgba(63, 185, 80, .4); }
+  h1 { font-size: 68px; font-weight: 800; letter-spacing: -1px; line-height: 1.05; }
+  h1 .accent { color: #58a6ff; }
+  .tag-zh { margin-top: 26px; font-size: 30px; font-weight: 600; color: #e6edf3; }
+  .tag-en { margin-top: 10px; font-size: 22px; color: #8b949e; }
+  .chips { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 36px; }
+  .chip {
+    font-size: 19px; font-weight: 600;
+    padding: 9px 18px; border-radius: 12px;
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(255,255,255,.13);
+    color: #c9d1d9;
+  }
+  .footer {
+    margin-top: 44px; font-size: 19px; color: #6e7681;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .footer .repo { color: #8b949e; font-weight: 600; }
+  .right {
+    position: absolute; right: -54px; top: 40px;
+    width: 600px; z-index: 1;
+    border-radius: 12px; overflow: hidden;
+    border: 1px solid rgba(255,255,255,.08);
+    filter: drop-shadow(0 24px 48px rgba(0,0,0,.55));
+  }
+  .right img { width: 100%; display: block; }
+  .fade {
+    position: absolute; right: 0; top: 0; width: 120px; height: 640px; z-index: 3;
+    background: linear-gradient(to right, rgba(10,13,18,0), rgba(10,13,18,.5));
+  }
+  .glow {
+    position: absolute; right: 120px; top: -160px; width: 560px; height: 560px; z-index: 0;
+    background: radial-gradient(circle, rgba(56,139,253,.14) 0%, rgba(56,139,253,0) 70%);
+  }
+</style>
+</head>
+<body>
+<div id="card">
+  <div class="glow"></div>
+  <div class="left">
+    <div class="badge-row">
+      <span class="mini-badge">Python 3.11+</span>
+      <span class="mini-badge green">MIT License</span>
+      <span class="mini-badge">v2.1.0</span>
+    </div>
+    <h1>🎓 moodle-<span class="accent">downloader</span></h1>
+    <div class="tag-zh">把 UNSW Moodle 课件一键同步到本地</div>
+    <div class="tag-en">One-command sync for your course materials · offline study</div>
+    <div class="chips">
+      <span class="chip">⚡ 24 线程并行</span>
+      <span class="chip">🔑 Okta SSO</span>
+      <span class="chip">🧠 深度扫描</span>
+      <span class="chip">🌏 中 / EN</span>
+    </div>
+    <div class="footer">
+      <span class="repo">github.com/KunyQi/moodle-downloader</span>
+    </div>
+  </div>
+  <div class="right"><img src="../assets/demo-zh.png" alt=""></div>
+  <div class="fade"></div>
+</div>
+</body>
+</html>
