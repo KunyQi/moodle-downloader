@@ -24,6 +24,7 @@ from moodle_scraper.mcp_server import (
     load_server_index,
     serve,
 )
+from moodle_scraper.study import notebook, planner
 from moodle_scraper.study.index import CourseIndex, Material, save_index
 
 
@@ -387,8 +388,9 @@ def test_revision_plan_default_days(index: CourseIndex) -> None:
     assert "over 7 day(s)" in text
     assert "## Day 1" in text
     assert "## Day 7" in text
-    # 材料比天数少 → 后面的天是缓冲日
-    assert "buffer / catch-up" in text
+    # 材料比天数少 → 后面的天没有新材料，但仍有间隔重复的回顾任务
+    assert "no new material — review only" in text
+    assert "### Review" in text
 
 
 def test_revision_plan_custom_days_covers_every_material(index: CourseIndex) -> None:
@@ -652,16 +654,26 @@ def test_parse_argv() -> None:
 
 # ─── 跨模块一致性 ───────────────────────────────────────────
 
-def test_kind_order_matches_notebook() -> None:
+def test_no_local_plan_implementation() -> None:
     """
-    MCP 的复习顺序必须与笔记本一致
+    MCP 不得自带一套排序 / 排期实现
 
-    两边都实现了"把课程材料摊到 N 天"，顺序不一样的话，同一门课
-    经 revision_plan 和经 build_revision_notebook 会得到两份对不上的计划。
+    历史上这里有过 _KIND_ORDER / _revision_sort_key / _split_evenly 的副本，
+    与笔记本各自演化后，同一门课经 revision_plan 和经 build_revision_notebook
+    会得到两份对不上的计划。现在统一由 study/planner.py 提供，副本必须不存在。
     """
-    from moodle_scraper.study.notebook import _KIND_ORDER as NOTEBOOK_ORDER
+    for name in ("_KIND_ORDER", "_revision_sort_key", "_split_evenly"):
+        assert not hasattr(mcp_server, name), f"{name} 又出现了副本，应改用 study.planner"
 
-    assert mcp_server._KIND_ORDER == NOTEBOOK_ORDER
+    # 用的必须就是 planner 里那一份（同一对象，不是等值的拷贝）
+    assert mcp_server.revision_sort_key is planner.revision_sort_key
+    assert mcp_server.build_plan is planner.build_plan
+
+
+def test_notebook_and_mcp_share_one_planner() -> None:
+    """笔记本与 MCP 必须引用同一个排期实现"""
+    assert notebook.build_plan is planner.build_plan
+    assert notebook.DayPlan is planner.DayPlan
 
 
 def test_kind_order_covers_every_kind_index_can_emit() -> None:
@@ -670,7 +682,23 @@ def test_kind_order_covers_every_kind_index_can_emit() -> None:
 
     kinds = {kind for kind, _ in _KIND_KEYWORDS} | {"other"}
 
-    assert kinds <= set(mcp_server._KIND_ORDER)
+    assert kinds <= set(planner.KIND_ORDER)
+
+
+def test_mcp_and_notebook_plans_agree(index: CourseIndex) -> None:
+    """
+    同一门课、同样天数：MCP 文本里的材料顺序必须与笔记本的计划一致
+
+    这是上面那些结构性断言的行为级兜底——就算有人绕过 planner，
+    只要两边结果对不上，这条就会红。
+    """
+    text = _text(_call(index, "revision_plan", {"course": "COMP1511", "days": 3}))
+    plans = planner.build_plan(index, course="COMP1511", days=3)
+
+    expected = [m.rel_path for plan in plans for m in plan.materials]
+    positions = [text.index(rel) for rel in expected]
+
+    assert positions == sorted(positions), "MCP 输出顺序与 planner 计划不一致"
 
 
 def test_tools_list_matches_handler_table() -> None:

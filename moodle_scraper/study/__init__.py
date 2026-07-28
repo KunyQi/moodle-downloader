@@ -20,8 +20,9 @@ from .index import (
     load_index,
     save_index,
 )
-from .notebook import DayPlan, build_plan, build_revision_notebook, notebook_dict
+from .notebook import build_revision_notebook, notebook_dict
 from .obsidian import ExportResult, export_vault
+from .planner import KIND_ORDER, DayPlan, build_plan, revision_sort_key
 
 __all__ = [
     "INDEX_FILENAME",
@@ -36,9 +37,12 @@ __all__ = [
     # Obsidian 导出
     "ExportResult",
     "export_vault",
-    # 复习笔记本
+    # 复习排期（MCP 与笔记本共用的唯一事实源）
+    "KIND_ORDER",
     "DayPlan",
     "build_plan",
+    "revision_sort_key",
+    # 复习笔记本
     "build_revision_notebook",
     "notebook_dict",
 ]

@@ -22,31 +22,28 @@ from __future__ import annotations
 import json
 import os
 from collections import Counter
-from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
 from .index import CourseIndex, Material
+from .planner import (
+    DEFAULT_DAYS,
+    DayPlan,
+    build_plan,
+    clamp_days,
+    select_materials,
+)
 
 
 # nbformat 版本（4.5 起每个 cell 必须带 id）
 NBFORMAT: int = 4
 NBFORMAT_MINOR: int = 5
 
-# 默认复习周期（天）
-DEFAULT_DAYS: int = 7
-
-# 复习周期上限，避免生成几百个空白天
-_MAX_DAYS: int = 60
-
 # 自测区最多列出多少份材料，超出部分只给出提示
 _MAX_QUIZ_ITEMS: int = 200
 
 # 计划表里每天最多显示几条，超出折叠成"共 N 份"
 _MAX_ROW_ITEMS: int = 8
-
-# 间隔重复的回顾间隔（天）：第 d 天回顾第 d-1 / d-3 / d-7 天学过的材料
-_REVIEW_INTERVALS: tuple[int, ...] = (1, 3, 7)
 
 # 材料类型的中文标签
 _KIND_LABELS: dict[str, str] = {
@@ -59,13 +56,6 @@ _KIND_LABELS: dict[str, str] = {
     "exam": "考试",
     "other": "其他",
 }
-
-# 排序时的类型优先级（先讲义后作业考试，符合复习顺序）
-# ⚠️ 必须与 mcp_server.py 的 _KIND_ORDER 和 skills/moodle-revision/SKILL.md 保持一致
-_KIND_ORDER: tuple[str, ...] = (
-    "lecture", "tutorial", "lab", "workshop",
-    "notes", "assignment", "exam", "other",
-)
 
 # 按类型给出的空白回忆提示
 _RECALL_PROMPTS: dict[str, str] = {
@@ -82,14 +72,6 @@ _RECALL_PROMPTS: dict[str, str] = {
 _FALLBACK_PROMPT: str = "先合上材料，说出你还记得的全部要点"
 
 
-@dataclass
-class DayPlan:
-    """一天的复习安排"""
-    day: int                                        # 第几天，从 1 开始
-    materials: list[Material] = field(default_factory=list)   # 当天新学
-    reviews: list[Material] = field(default_factory=list)     # 当天回顾（间隔重复）
-
-
 def notebook_dict(
     index: CourseIndex,
     *,
@@ -104,8 +86,8 @@ def notebook_dict(
     :param days: 复习周期天数，会被夹到 1..60
     :returns: 可直接 json.dumps 的字典
     """
-    day_count = _clamp_days(days)
-    materials = _select_materials(index, course)
+    day_count = clamp_days(days)
+    materials = select_materials(index, course)
     plans = build_plan(index, course=course, days=day_count)
 
     cells = [
@@ -175,95 +157,11 @@ def build_revision_notebook(
     return str(target)
 
 
-def build_plan(
-    index: CourseIndex,
-    *,
-    course: str | None = None,
-    days: int = DEFAULT_DAYS,
-) -> list[DayPlan]:
-    """
-    把材料摊到若干天里，并按 1/3/7 天间隔安排回顾
-
-    材料先按周次排序（未标注周次的排在最后），再尽量均匀地分配到每一天，
-    材料少于天数时后面的日子只有回顾任务。
-
-    :param index: 课件索引
-    :param course: 只针对某一门课程，None 表示全部
-    :param days: 复习周期天数，会被夹到 1..60
-    :returns: 长度等于天数的 DayPlan 列表
-    """
-    day_count = _clamp_days(days)
-    materials = _select_materials(index, course)
-
-    plans = [DayPlan(day=i + 1) for i in range(day_count)]
-
-    # 均匀切块：前 extra 天各多拿一份
-    base, extra = divmod(len(materials), day_count)
-    cursor = 0
-    for i, plan in enumerate(plans):
-        take = base + (1 if i < extra else 0)
-        plan.materials = materials[cursor:cursor + take]
-        cursor += take
-
-    # 间隔重复：第 d 天回顾第 d-1 / d-3 / d-7 天学过的东西
-    for plan in plans:
-        seen: set[str] = set()
-        for interval in _REVIEW_INTERVALS:
-            source = plan.day - interval
-            if source < 1:
-                continue
-            for material in plans[source - 1].materials:
-                key = material.path or material.rel_path
-                if key in seen:
-                    continue
-                seen.add(key)
-                plan.reviews.append(material)
-
-    return plans
-
-
 # ─── 内部函数：数据整理 ──────────────────────────────────────
-
-def _clamp_days(days: int) -> int:
-    """把天数夹到 1.._MAX_DAYS，非法输入回落到默认值"""
-    try:
-        value = int(days)
-    except (TypeError, ValueError):
-        return DEFAULT_DAYS
-    if value < 1:
-        return 1
-    return min(value, _MAX_DAYS)
+#
+# 排序 / 分天 / 间隔重复的实现都在 study/planner.py，本模块只负责渲染。
 
 
-def _select_materials(index: CourseIndex, course: str | None) -> list[Material]:
-    """挑出目标课程的材料并按复习顺序排序"""
-    items = index.all_materials()
-
-    target = course.strip().lower() if course and course.strip() else None
-    if target is not None:
-        items = [m for m in items if m.course.lower() == target]
-
-    return sorted(items, key=_sort_key)
-
-
-def _sort_key(material: Material) -> tuple:
-    """复习顺序：有周次的按周次在前，同周内按类型优先级，再按路径"""
-    week = material.week
-    return (
-        week is None,
-        week if week is not None else 0,
-        _kind_rank(material.kind),
-        material.course.lower(),
-        material.rel_path.lower(),
-    )
-
-
-def _kind_rank(kind: str) -> int:
-    """类型在 _KIND_ORDER 里的位置，未知类型排最后"""
-    try:
-        return _KIND_ORDER.index(kind)
-    except ValueError:
-        return len(_KIND_ORDER)
 
 
 def _kind_label(kind: str) -> str:

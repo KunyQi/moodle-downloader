@@ -35,6 +35,12 @@ from .study.index import (
     extract_pdf_text,
     load_index,
 )
+from .study.planner import (
+    MAX_DAYS,
+    MIN_DAYS,
+    build_plan,
+    revision_sort_key,
+)
 
 
 # ─── 协议常量 ───────────────────────────────────────────────
@@ -55,8 +61,8 @@ INVALID_PARAMS: int = -32602
 INTERNAL_ERROR: int = -32603
 
 # 复习计划允许的天数区间
-MIN_PLAN_DAYS: int = 1
-MAX_PLAN_DAYS: int = 60
+MIN_PLAN_DAYS: int = MIN_DAYS
+MAX_PLAN_DAYS: int = MAX_DAYS
 
 # search_materials 的默认 / 最大返回条数
 DEFAULT_SEARCH_LIMIT: int = 20
@@ -65,12 +71,8 @@ MAX_SEARCH_LIMIT: int = 200
 # get_material_text 回落到磁盘抽取时最多读多少字符
 MATERIAL_TEXT_CHARS: int = 6000
 
-# 复习顺序：先讲义再练习，笔记随后，测评类排在最后
-# ⚠️ 必须与 study/notebook.py 的 _KIND_ORDER 和 skills/moodle-revision/SKILL.md
-#    保持一致，否则同一门课经 MCP 工具和经笔记本得到的复习顺序会对不上
-_KIND_ORDER: tuple[str, ...] = (
-    "lecture", "tutorial", "lab", "workshop", "notes", "assignment", "exam", "other",
-)
+# 复习顺序与排期统一由 study/planner.py 定义（KIND_ORDER / build_plan），
+# 本模块只负责把结果渲染成 MCP 文本，不再自带一套实现。
 
 
 __all__ = [
@@ -499,23 +501,36 @@ def _tool_revision_plan(arguments: dict, index: CourseIndex) -> dict[str, Any]:
     if not materials:
         return _text_result(f"Course '{course}' has no indexed materials to plan.")
 
-    ordered = sorted(materials, key=_revision_sort_key)
-    buckets = _split_evenly(ordered, days)
+    # 排期逻辑与复习笔记本共用 study/planner.build_plan，
+    # 保证同一门课经 MCP 与经笔记本得到完全一致的计划
+    plans = build_plan(index, course=course, days=days)
+    total = sum(len(plan.materials) for plan in plans)
 
     lines = [
-        f"Revision plan — {course}: {len(ordered)} material(s) over {days} day(s)",
+        f"Revision plan — {course}: {total} material(s) over {days} day(s)",
+        "Spaced repetition: each day also revisits what you studied 1 / 3 / 7 days earlier.",
     ]
-    for number, bucket in enumerate(buckets, start=1):
+    for plan in plans:
         lines.append("")
-        if not bucket:
-            lines.append(f"## Day {number} — buffer / catch-up (no material assigned)")
+        if not plan.materials and not plan.reviews:
+            lines.append(f"## Day {plan.day} — buffer / catch-up (no material assigned)")
             continue
-        weeks = _week_span(bucket)
-        heading = f"## Day {number} ({len(bucket)})"
+
+        heading = f"## Day {plan.day} ({len(plan.materials)} new)"
+        weeks = _week_span(plan.materials) if plan.materials else ""
         if weeks:
             heading += f" — weeks {weeks}"
         lines.append(heading)
-        lines.extend(_material_lines(bucket))
+
+        if plan.materials:
+            lines.extend(_material_lines(plan.materials))
+        else:
+            lines.append("- (no new material — review only)")
+
+        if plan.reviews:
+            lines.append("")
+            lines.append(f"### Review ({len(plan.reviews)})")
+            lines.extend(_material_lines(plan.reviews))
 
     return _text_result("\n".join(lines))
 
@@ -671,37 +686,11 @@ def _group_by_week(materials: list[Material]) -> list[tuple[int | None, list[Mat
 
     known = sorted((w for w in grouped if w is not None))
     groups: list[tuple[int | None, list[Material]]] = [
-        (week, sorted(grouped[week], key=_revision_sort_key)) for week in known
+        (week, sorted(grouped[week], key=revision_sort_key)) for week in known
     ]
     if None in grouped:
-        groups.append((None, sorted(grouped[None], key=_revision_sort_key)))
+        groups.append((None, sorted(grouped[None], key=revision_sort_key)))
     return groups
-
-
-def _split_evenly(items: list[Material], buckets: int) -> list[list[Material]]:
-    """把有序材料尽量平均切成 buckets 份（前面的份额多 1）"""
-    if buckets <= 0:
-        return [list(items)]
-
-    base, extra = divmod(len(items), buckets)
-    result: list[list[Material]] = []
-    cursor = 0
-    for i in range(buckets):
-        size = base + (1 if i < extra else 0)
-        result.append(items[cursor:cursor + size])
-        cursor += size
-    return result
-
-
-def _revision_sort_key(material: Material) -> tuple[int, int, int, str]:
-    """复习顺序：有周次的按周次在前，其次按类型优先级，最后按路径"""
-    week_missing = 1 if material.week is None else 0
-    week = material.week if material.week is not None else 0
-    try:
-        kind_rank = _KIND_ORDER.index(material.kind)
-    except ValueError:
-        kind_rank = len(_KIND_ORDER)
-    return (week_missing, week, kind_rank, material.rel_path.lower())
 
 
 # ─── 内部函数：文本渲染 ─────────────────────────────────────

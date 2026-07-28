@@ -20,7 +20,7 @@ never invent material that is not in the index.
 | `course_overview` | One course: material counts by week and by kind (lecture / lab / tutorial / notes / assignment / exam) |
 | `search_materials` | Find materials by keyword across filenames and extracted text |
 | `get_material_text` | Pull the extracted text of one file — this is your question source |
-| `revision_plan` | A day-by-day split of one course's materials, ordered by week and kind (new material only — you add the review passes yourself, see §4) |
+| `revision_plan` | A day-by-day plan for one course: new material ordered by week and kind, plus the d-1 / d-3 / d-7 spaced-repetition review slots for each day |
 
 **Fallback: read the files directly.** If no MCP server is available:
 
@@ -65,18 +65,21 @@ paper — because that usually means something is missing from the download.
 
 ## 4. Build a spaced-repetition plan
 
-Call `revision_plan` for the day-by-day split, or produce the split yourself with the same
+Call `revision_plan` — it returns the full plan, or reproduce it yourself with the same
 rules the project uses:
 
 - Sort materials by week (files with no detected week go last), then by kind:
   lecture → tutorial → lab → workshop → notes → assignment → exam.
 - Spread them evenly over the available days.
+- On day *d*, also re-visit what was assigned on days *d-1*, *d-3* and *d-7*. These appear
+  under a `### Review` heading in the tool output. Review is a 30-second "can I still
+  recall the gist from the title?" check, not a re-read.
 
-`revision_plan` stops there — it only assigns *new* material per day. Layer the review
-passes on top yourself: on day *d*, re-visit what was assigned on days *d-1*, *d-3* and
-*d-7*. Review is a 30-second "can I still recall the gist from the title?" check, not a
-re-read. (The generated notebook below already includes these review columns.)
-- Front-load lectures; keep past exams for the last third of the plan.
+The MCP tool and the generated notebook share one implementation
+(`moodle_scraper/study/planner.py`), so both give the identical plan for the same course
+and day count — quote either with confidence.
+
+Front-load lectures; keep past exams for the last third of the plan.
 
 If the user wants the plan as a file they can tick off, generate a Jupyter notebook:
 
