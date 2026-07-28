@@ -8,7 +8,7 @@
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-passing-brightgreen)](tests/)
-[![Version](https://img.shields.io/badge/version-2.1.0-informational)](https://github.com/KunyQi/moodle-downloader)
+[![Version](https://img.shields.io/badge/version-2.2.0-informational)](https://github.com/KunyQi/moodle-downloader)
 
 [中文版](#中文版) · [English Version](#english-version)
 
@@ -109,13 +109,52 @@ language = "zh"                           # 界面语言: "zh" 或 "en"
 # type = "chrome"                         # 留空 = 自动检测 (chrome → edge → firefox)
 ```
 
+### 🤖 接入 AI Agent 复习（v2.2.0 新增）
+
+下载只是第一步。这些命令把硬盘上的课件变成**可检索的知识库**，让 Claude Code、Claude Desktop 等 AI agent 直接带你复习——全部操作本地文件，**无需登录**。
+
+```bash
+python main.py --index                      # 索引本地课件（默认当前目录）
+python main.py --obsidian vault             # 导出 Obsidian 知识库
+python main.py --obsidian vault --copy-files  # 同时把原文件复制进库
+python main.py --notebook revision.ipynb --days 7   # 生成复习 notebook
+```
+
+**MCP 服务 —— agent 的接入点**
+
+```bash
+python -m moodle_scraper.mcp_server --root .
+```
+
+这是一个标准 [MCP](https://modelcontextprotocol.io) 服务（stdio / JSON-RPC，零额外依赖），任何 MCP 客户端都能接。在 Claude Code 里注册：
+
+```bash
+claude mcp add moodle -- python -m moodle_scraper.mcp_server --root /path/to/materials
+```
+
+暴露 5 个工具：
+
+| 工具 | 作用 |
+| --- | --- |
+| `list_courses` | 列出本地已有的课程与材料统计 |
+| `search_materials` | 按关键词全文检索课件 |
+| `get_material_text` | 取出某份材料的正文 |
+| `course_overview` | 按周次 / 类型总览一门课 |
+| `revision_plan` | 把材料分配到 N 天的复习计划 |
+
+**Obsidian 知识库**：每门课一个 MOC 索引页，材料按周分目录，每篇笔记带 YAML frontmatter（课程 / 周次 / 类型 / 标签）、原文件嵌入、`## 复习要点` 空白区和正文摘要，互相 wikilink 连通。
+
+**复习 Skill**：仓库内含 [`skills/moodle-revision/`](skills/moodle-revision/)，让支持 Skills 的 agent 学会一整套流程：选课 → 看总览 → 排间隔重复计划 → 用真实材料出题考你。
+
+> 💡 **全文检索是可选增强**：PDF 正文提取需要 `pip install pypdf`（懒加载，不装也能跑，只是检索退化为按文件名匹配）。`.txt` / `.md` 无需任何额外依赖。
+
 ### 测试
 
 ```bash
 python -m pytest tests/ -q
 ```
 
-全部 70+ 项测试完全离线运行——通过一个假 HTTP 客户端注入预设响应，不会碰真实网络。
+全部 280+ 项测试完全离线运行——通过一个假 HTTP 客户端注入预设响应，不会碰真实网络。
 
 ### 工程质量
 
@@ -254,13 +293,52 @@ language = "en"                           # UI language: "zh" or "en"
 # type = "chrome"                         # empty = auto-detect (chrome → edge → firefox)
 ```
 
+### 🤖 AI agent revision (new in v2.2.0)
+
+Downloading is only step one. These commands turn the files on your disk into a **searchable knowledge base** that Claude Code, Claude Desktop and other AI agents can revise with you — all local, **no login required**.
+
+```bash
+python main.py --index                      # index local materials (defaults to cwd)
+python main.py --obsidian vault             # export an Obsidian vault
+python main.py --obsidian vault --copy-files  # also copy the source files in
+python main.py --notebook revision.ipynb --days 7   # build a revision notebook
+```
+
+**MCP server — the agent entry point**
+
+```bash
+python -m moodle_scraper.mcp_server --root .
+```
+
+A standard [MCP](https://modelcontextprotocol.io) server (stdio / JSON-RPC, zero extra dependencies) that any MCP client can talk to. Register it with Claude Code:
+
+```bash
+claude mcp add moodle -- python -m moodle_scraper.mcp_server --root /path/to/materials
+```
+
+It exposes 5 tools:
+
+| Tool | What it does |
+| --- | --- |
+| `list_courses` | List local courses with material counts |
+| `search_materials` | Full-text search across your course files |
+| `get_material_text` | Pull the text of one material |
+| `course_overview` | Break a course down by week and type |
+| `revision_plan` | Split the material across an N-day plan |
+
+**Obsidian vault**: one MOC per course, materials bucketed by week, and every note carrying YAML frontmatter (course / week / kind / tags), an embed of the source file, a blank "key points" section and a text summary — all wikilinked together.
+
+**Revision Skill**: the repo ships [`skills/moodle-revision/`](skills/moodle-revision/), which teaches a Skills-capable agent the whole loop: pick a course → review the overview → build a spaced-repetition plan → quiz you from the real material.
+
+> 💡 **Full-text search is an optional upgrade**: extracting text from PDFs needs `pip install pypdf` (lazily imported — without it everything still runs, search just falls back to filename matching). `.txt` / `.md` need nothing extra.
+
 ### Tests
 
 ```bash
 python -m pytest tests/ -q
 ```
 
-All 70+ tests run fully offline — they inject pre-registered responses through a fake HTTP client and never touch the network.
+All 280+ tests run fully offline — they inject pre-registered responses through a fake HTTP client and never touch the network.
 
 ### Engineering notes
 

@@ -183,6 +183,89 @@ def _discover_courses(
 
 
 # ═══════════════════════════════════════════════════════════════
+# 学习 / Agent 集成（操作已下载的本地文件，无需登录）
+# ═══════════════════════════════════════════════════════════════
+
+def _study_flow(
+    ui: RichUI,
+    *,
+    root: str,
+    export_vault_dir: Optional[str] = None,
+    notebook_path: Optional[str] = None,
+    course: Optional[str] = None,
+    days: int = 7,
+    overwrite: bool = False,
+    copy_files: bool = False,
+) -> int:
+    """索引本地课件 → 可选导出 Obsidian / 生成复习 notebook"""
+    from pathlib import Path
+
+    from .study import (
+        INDEX_FILENAME,
+        build_index,
+        build_revision_notebook,
+        export_vault,
+        save_index,
+    )
+
+    root_path = Path(root).resolve()
+
+    ui.status("🔍", t("study.indexing", root=root_path))
+    try:
+        index = build_index(root_path)
+    except Exception as e:
+        ui.show_error(t("study.failed_title"), str(e))
+        return 1
+
+    materials = index.all_materials()
+    if not materials:
+        ui.status("❓", t("study.no_materials"))
+        return 0
+
+    ui.status("📚", t("study.index_done", courses=len(index.courses), files=len(materials)))
+
+    index_path = root_path / INDEX_FILENAME
+    try:
+        save_index(index, index_path)
+        ui.status("📌", t("study.index_saved", path=index_path))
+    except Exception as e:
+        ui.show_error(t("study.failed_title"), str(e))
+        return 1
+
+    # ── 导出 Obsidian 知识库 ──────────────────────────
+    if export_vault_dir:
+        ui.status("📝", t("study.exporting", vault=export_vault_dir))
+        try:
+            result = export_vault(
+                index, export_vault_dir,
+                overwrite=overwrite, copy_files=copy_files,
+            )
+        except Exception as e:
+            ui.show_error(t("study.failed_title"), str(e))
+            return 1
+        ui.status("✅", t(
+            "study.export_done",
+            notes=result.notes_written, courses=result.courses, skipped=result.skipped,
+        ))
+        if result.files_copied:
+            ui.status("📦", t("study.export_copied", count=result.files_copied))
+        ui.status("👉", t("study.export_hint"))
+
+    # ── 生成复习 notebook ─────────────────────────────
+    if notebook_path:
+        ui.status("📓", t("study.notebook_building"))
+        try:
+            written = build_revision_notebook(index, notebook_path, course=course, days=days)
+        except Exception as e:
+            ui.show_error(t("study.failed_title"), str(e))
+            return 1
+        ui.status("✅", t("study.notebook_done", path=written))
+
+    ui.status("🌐", t("study.mcp_hint"))
+    return 0
+
+
+# ═══════════════════════════════════════════════════════════════
 # 主流程
 # ═══════════════════════════════════════════════════════════════
 
@@ -194,6 +277,12 @@ def main_impl(
     discover_range: Optional[str] = None,
     browser: str = "",
     lang: str = "",
+    study_root: Optional[str] = None,
+    export_vault_dir: Optional[str] = None,
+    notebook_path: Optional[str] = None,
+    days: int = 7,
+    overwrite: bool = False,
+    copy_files: bool = False,
 ) -> int:
     """主流程 — 返回退出码 (0=成功)"""
     if course_id is not None:
@@ -224,6 +313,20 @@ def main_impl(
     ui = RichUI(config)
     if unsupported_lang:
         ui.status("⚠️", t("lang.unsupported", lang=unsupported_lang))
+
+    # ── 学习 / Agent 集成：只读本地文件，在认证之前短路返回 ──
+    if study_root is not None or export_vault_dir or notebook_path:
+        return _study_flow(
+            ui,
+            root=study_root or ".",
+            export_vault_dir=export_vault_dir,
+            notebook_path=notebook_path,
+            course=config.course_id or None,
+            days=days,
+            overwrite=overwrite,
+            copy_files=copy_files,
+        )
+
     auth = AuthManager(config, on_status=ui.status)
 
     # ── 认证 ──────────────────────────────────────────
@@ -256,6 +359,12 @@ def main(
     discover_range: Optional[str] = None,
     browser: str = "",
     lang: str = "",
+    study_root: Optional[str] = None,
+    export_vault_dir: Optional[str] = None,
+    notebook_path: Optional[str] = None,
+    days: int = 7,
+    overwrite: bool = False,
+    copy_files: bool = False,
 ) -> None:
     """CLI 入口"""
     exit_code = 1
@@ -267,6 +376,12 @@ def main(
             discover_range=discover_range,
             browser=browser,
             lang=lang,
+            study_root=study_root,
+            export_vault_dir=export_vault_dir,
+            notebook_path=notebook_path,
+            days=days,
+            overwrite=overwrite,
+            copy_files=copy_files,
         )
     except KeyboardInterrupt:
         print(f"\n  ⛔ {t('app.user_interrupt')}")

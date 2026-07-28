@@ -21,6 +21,12 @@ moodle_cookies.json
 *_Moodle/
 ARTS1630-*/
 
+# ─── 学习产物（本地生成，不入库）────────────────────
+.moodle-index.json
+vault/
+*_Vault/
+revision*.ipynb
+
 # ─── 系统文件 ────────────────────────────────────────
 .DS_Store
 Thumbs.db

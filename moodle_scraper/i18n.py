@@ -62,6 +62,20 @@ _ZH: dict[str, str] = {
     "flow.discover_none_detail": "范围 {start}～{end} 内未找到可访问的课程",
     "flow.discover_found_title": "发现 {count} 门可访问的课程",
 
+    # ── 学习 / Agent 集成 ──
+    "study.indexing": "正在索引本地课件 {root}...",
+    "study.index_done": "已索引 {courses} 门课程、{files} 个文件",
+    "study.index_saved": "索引已保存到 {path}",
+    "study.no_materials": "未找到任何已下载的课件，请先下载课程",
+    "study.exporting": "正在导出 Obsidian 知识库到 {vault}...",
+    "study.export_done": "已写入 {notes} 篇笔记（{courses} 门课程），跳过 {skipped} 篇已存在",
+    "study.export_copied": "已复制 {count} 个原文件到 _attachments/",
+    "study.export_hint": "用 Obsidian 打开该文件夹即可开始复习",
+    "study.notebook_building": "正在生成复习 notebook...",
+    "study.notebook_done": "复习 notebook 已生成: {path}",
+    "study.mcp_hint": "Agent 接入: python -m moodle_scraper.mcp_server",
+    "study.failed_title": "操作失败",
+
     # ── 课程选择表格 ──
     "table.course_name": "课程名称",
     "table.course_id": "课程 ID",
@@ -146,6 +160,20 @@ _EN: dict[str, str] = {
     "flow.discover_none_title": "Nothing found",
     "flow.discover_none_detail": "No accessible courses found in range {start}-{end}",
     "flow.discover_found_title": "Found {count} accessible courses",
+
+    # ── Study / agent integration ──
+    "study.indexing": "Indexing local materials in {root}...",
+    "study.index_done": "Indexed {courses} courses, {files} files",
+    "study.index_saved": "Index saved to {path}",
+    "study.no_materials": "No downloaded materials found — download a course first",
+    "study.exporting": "Exporting Obsidian vault to {vault}...",
+    "study.export_done": "Wrote {notes} notes across {courses} courses, skipped {skipped} existing",
+    "study.export_copied": "Copied {count} source files into _attachments/",
+    "study.export_hint": "Open that folder in Obsidian to start revising",
+    "study.notebook_building": "Building revision notebook...",
+    "study.notebook_done": "Revision notebook ready: {path}",
+    "study.mcp_hint": "Agent access: python -m moodle_scraper.mcp_server",
+    "study.failed_title": "Operation failed",
 
     # ── Course picker table ──
     "table.course_name": "Course Name",

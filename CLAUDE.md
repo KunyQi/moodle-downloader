@@ -18,6 +18,8 @@ python -m compileall moodle_scraper/ main.py          # syntax check
 
 Running the app: `python main.py` (interactive), `python main.py <course_id>`, `--browser chrome|edge|firefox`, `--workers N`, `--lang zh|en`, and an undocumented `--discover START-END` that probes a course-ID range.
 
+Post-download study flags (these short-circuit in `main_impl()` **before** authentication, since they only read local files): `--index [DIR]`, `--obsidian VAULT` (+ `--overwrite`, `--copy-files`), `--notebook PATH` (+ `--days N`). The MCP server runs separately: `python -m moodle_scraper.mcp_server --root DIR`. PDF text extraction is an optional extra (`pip install pypdf`) — lazily imported, degrades to empty text when absent, never a hard dependency.
+
 **Do not run `python main.py` from automation.** Both `main.py` and `moodle_scraper.__main__.main()` block on `input()` prompts (crash-guard "press Enter to exit", Y/n confirmations) and require a real browser for login. For programmatic checks, call `main_impl()` or the individual modules directly.
 
 ## Architecture
@@ -34,6 +36,9 @@ Flow: `main.py` → `moodle_scraper.__main__.main_impl()` → `AuthManager.get_a
 - **`moodle_scraper/i18n.py`** — zh/en message catalogs and the `t(key, **kwargs)` lookup; `set_language()` mutates module-level state, resolved once in `main_impl()` from `--lang` / `config.language` (CLI wins, unknown values warn and fall back to zh).
 - **`moodle_scraper/ui.py`** — `RichUI`; all user-facing output goes through `ui.status(emoji, msg)`, panels, and progress callbacks — no bare `print` in library code.
 - **`moodle_scraper/utils.py`** — pure functions: `sanitize_filename`, `extract_extension`, `is_login_page`.
+- **`moodle_scraper/study/`** — the post-download layer, operating on files already on disk (never the network, never login). `index.py` is its contract: `build_index()` walks a root treating each subdir as a course, producing `CourseIndex`/`Material` with heuristic `kind`/`week` and optional extracted text, persisted to `.moodle-index.json`. `obsidian.py` exports a vault (per-course MOC + week-bucketed notes with YAML frontmatter and wikilinks); `notebook.py` emits a revision `.ipynb` as raw JSON. Both consume `CourseIndex` and, like Scanner/Downloader, return dataclasses rather than printing.
+- **`moodle_scraper/mcp_server.py`** — MCP server over stdio (hand-rolled JSON-RPC 2.0, no `mcp` dependency) exposing 5 tools to AI agents. `handle_request(request, index)` is a pure function so the protocol is testable without stdio; `serve()` takes injectable `stdin`/`stdout`.
+- **`skills/moodle-revision/SKILL.md`** — agent-facing Skill describing the revision workflow over the MCP tools / vault.
 
 The Moodle base URL is hardcoded in `scanner.py` and `auth.py`.
 
