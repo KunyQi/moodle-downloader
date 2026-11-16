@@ -63,3 +63,66 @@ class TestFakeHttpClient:
         assert len(fake.request_log) == 3
         assert fake.request_log[0] == ("GET", "https://a.com")
         assert fake.request_log[2] == ("STREAM", "https://c.com/file")
+
+
+class TestRequestsHttpClientStream:
+    """RequestsHttpClient.get_stream 对错误页与登录页的识别（本地服务器，不访问网络）"""
+
+    @staticmethod
+    def _serve():
+        import http.server
+        import threading
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                if self.path.startswith("/login"):
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/html; charset=utf-8")
+                    self.end_headers()
+                    self.wfile.write(b"<html>Log in</html>")
+                elif self.path.startswith("/forbidden"):
+                    self.send_response(403)
+                    self.end_headers()
+                else:
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/pdf")
+                    self.end_headers()
+                    self.wfile.write(b"%PDF-1.4 ok")
+
+            def log_message(self, *args):
+                pass
+
+        server = http.server.HTTPServer(("127.0.0.1", 0), Handler)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        return server, f"http://127.0.0.1:{server.server_port}"
+
+    def test_streams_pdf(self):
+        from moodle_scraper.http import RequestsHttpClient
+        server, base = self._serve()
+        try:
+            data = b"".join(RequestsHttpClient().get_stream(f"{base}/ok.pdf"))
+            assert data == b"%PDF-1.4 ok"
+        finally:
+            server.shutdown()
+
+    def test_raises_on_http_error(self):
+        import pytest
+        import requests
+        from moodle_scraper.http import RequestsHttpClient
+        server, base = self._serve()
+        try:
+            with pytest.raises(requests.HTTPError):
+                list(RequestsHttpClient().get_stream(f"{base}/forbidden.pdf"))
+        finally:
+            server.shutdown()
+
+    def test_raises_on_html_login_page(self):
+        import pytest
+        import requests
+        from moodle_scraper.http import RequestsHttpClient
+        server, base = self._serve()
+        try:
+            with pytest.raises(requests.HTTPError, match="session expired"):
+                list(RequestsHttpClient().get_stream(f"{base}/login.pdf"))
+        finally:
+            server.shutdown()

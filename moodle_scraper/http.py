@@ -61,6 +61,16 @@ class RequestsHttpClient:
         with self._session.get(
             url, stream=True, allow_redirects=True, timeout=timeout
         ) as resp:
+            # 非 2xx 直接报错，避免把错误页面当成文件写入磁盘
+            resp.raise_for_status()
+            # 会话过期时 Moodle 会返回 HTML 登录页（200），需识别并报错，而不是保存为 .pdf
+            content_type = resp.headers.get("Content-Type", "").lower()
+            if "text/html" in content_type and not url.split("?")[0].lower().endswith(
+                (".html", ".htm", ".php")
+            ):
+                raise requests.HTTPError(
+                    f"Unexpected HTML response (session expired?): {url}", response=resp
+                )
             for chunk in resp.iter_content(chunk_size=chunk_size):
                 if chunk:
                     yield chunk
